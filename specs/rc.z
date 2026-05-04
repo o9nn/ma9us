@@ -1,0 +1,113 @@
+--
+-- Z++ Formal Specification for the RC Shell
+--
+
+-- Basic Types
+
+FREE TYPE
+    STRING ::= string
+    INTEGER ::= int
+    BOOLEAN ::= bool
+
+-- Core Data Structures
+
+-- Represents a single word or a list of words
+SCHEMA List
+    word: STRING
+    next: opt List
+
+-- Represents a node in the Abstract Syntax Tree (AST)
+SCHEMA Node
+    type: NodeType
+    value: STRING
+    children: seq Node
+
+-- Enumeration of AST node types
+FREE TYPE NodeType ::= nAssign | nCommand | nPipe | nAnd | nOr | nSubshell | nIf | nWhile | nFor | nCase
+
+-- Represents a shell variable
+SCHEMA Variable
+    name: STRING
+    value: List
+
+-- Represents a shell function
+SCHEMA Function
+    name: STRING
+    body: Node
+
+-- System State
+
+-- Symbol table for variables and functions
+SCHEMA SymbolTable
+    variables: STRING -> Variable
+    functions: STRING -> Function
+
+-- Represents the execution environment
+SCHEMA ExecutionEnvironment
+    ast: Node
+    status: INTEGER
+    symbol_table: SymbolTable
+
+-- Represents the complete state of the shell
+SCHEMA ShellState
+    env: ExecutionEnvironment
+    is_interactive: BOOLEAN
+
+-- Operations
+
+-- Parses a command string into an AST
+SCHEMA Parse
+    input: STRING
+    output!: Node
+    symbol_table: SymbolTable
+
+-- Executes an AST node
+SCHEMA Execute
+    node: Node
+    env: ExecutionEnvironment
+    env’: ExecutionEnvironment
+
+-- Assigns a value to a variable
+SCHEMA Assign
+    name: STRING
+    value: List
+    symbol_table: SymbolTable
+    symbol_table’: SymbolTable
+
+-- Evaluates a command and updates the environment
+SCHEMA Evaluate
+    command: STRING
+    env: ExecutionEnvironment
+    env’: ExecutionEnvironment
+
+-- Operation Definitions
+
+-- Parse operation definition
+Parse
+    -- Pre-condition: Input string is not empty
+    pre: #input > 0
+    -- Post-condition: Output is a valid AST
+    post: is_valid_ast(output’)
+
+-- Execute operation definition
+Execute
+    -- Pre-condition: The node is a valid AST node
+    pre: is_valid_ast(node)
+    -- Post-condition: The environment is updated based on the execution
+    post: env’ = execute_node(node, env)
+
+-- Assign operation definition
+Assign
+    -- Pre-condition: The variable name is not empty
+    pre: #name > 0
+    -- Post-condition: The variable is assigned in the symbol table
+    post: symbol_table’.variables = symbol_table.variables 
+        ∪ {name ↦ make_variable(name, value)}
+
+-- Evaluate operation definition
+Evaluate
+    -- Pre-condition: The command string is not empty
+    pre: #command > 0
+    -- Post-condition: The environment is updated after parsing and execution
+    post: let ast == parse(command, env.symbol_table) in
+        env’ = execute(ast, env)

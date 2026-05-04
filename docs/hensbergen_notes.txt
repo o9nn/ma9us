@@ -1,0 +1,66 @@
+# Key Findings from Hensbergen PDF: "Grave Robbers from Outer Space - Using 9P2000 Under Linux"
+# Source: FREENIX Track: 2005 USENIX Annual Technical Conference
+# Authors: Eric Van Hensbergen (IBM Austin Research Lab), Ron Minnich (Los Alamos National Labs)
+
+## Abstract
+- Implementation of Plan 9 distributed resource protocol 9P under Linux 2.6 kernel
+- Private name spaces added to 2.6 kernel
+- Foundation for seamless distributed computing using Linux
+- Performance analysis: 9P vs NFS for static file system sharing
+
+## Plan 9 Design Principles (Three Core Principles)
+1. Develop a single set of simple, well-defined interfaces to services
+2. Use a simple protocol to securely distribute the interfaces across any network
+3. Provide a dynamic hierarchical structure to organize these interfaces
+
+## Key Concept: Everything is a File
+- All system resources and interfaces are represented as files
+- Synthetic file systems (devfs, procfs, sysfs) represent devices with no physical storage
+- Plan 9 uses only ~40 system calls compared to Linux's ~300
+
+## 9P Protocol Characteristics
+- Requires only a reliable, in-order transport mechanism
+- Commonly used over TCP/IP, but also over RUDP, PPP, PCI bus, serial, shared memory
+- IL (Internet Link) protocol designed specifically for 9P - reliable transport without TCP overhead
+
+## 9P2000 Protocol (Released 2002)
+- Most recent version of 9P
+- Removed 28-byte file name limitation
+- Optimized operations for traversing file hierarchies
+- Introduced negotiation phase for different protocol versions
+
+## 9P2000 Operations (12 Basic Operations)
+### Session Operations:
+- version: parameter negotiation
+- auth: security authentication
+- attach: establish a connection
+- flush: abort a request
+- error: return an error
+
+### File Operations:
+- walk: lookup pathname
+- open: access a file
+- create: create & access a file
+- read: transfer data from a file
+- write: transfer data to a file
+- clunk: release a file
+
+### Metadata Operations:
+- stat: read file attributes
+- wstat: modify file attributes
+
+## Key Concepts
+- Fid: 32-bit unsigned integer used by client to identify "current file" on server
+- Qid: Server's unique identifier for a file (path, version, type)
+- Tag: Identifies messages for multiplexing operations on single connection
+
+## Name Spaces
+- Per-process unique and dynamic name space
+- Manipulated through mount(1) and bind(1) commands
+- Mount: add new interfaces to name space
+- Bind: reorganize existing name space, create stackable layers
+
+## u9fs
+- Unix 9P server implementation
+- Provides 9P2000 file server interface to Unix file systems
+- Used for debugging and interoperability testing

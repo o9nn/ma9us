@@ -1,0 +1,24 @@
+sequenceDiagram
+    participant Client
+    participant Server
+
+    Client->>Server: Tversion(tag, msize, version)
+    Server-->>Client: Rversion(tag, msize, version)
+
+    Client->>Server: Tauth(tag, afid, uname, aname)
+    Server-->>Client: Rauth(tag, aqid)
+
+    Client->>Server: Tattach(tag, fid, afid, uname, aname)
+    Server-->>Client: Rattach(tag, qid)
+
+    Client->>Server: Twalk(tag, fid, newfid, wnames)
+    Server-->>Client: Rwalk(tag, wqids)
+
+    Client->>Server: Topen(tag, fid, mode)
+    Server-->>Client: Ropen(tag, qid, iounit)
+
+    Client->>Server: Tread(tag, fid, offset, count)
+    Server-->>Client: Rread(tag, count, data)
+
+    Client->>Server: Tclunk(tag, fid)
+    Server-->>Client: Rclunk(tag)

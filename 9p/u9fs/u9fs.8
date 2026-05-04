@@ -1,0 +1,231 @@
+.TH U9FS 8
+.SH NAME
+u9fs \- serve 9P from Unix
+.SH SYNOPSIS
+.B u9fs
+[-Dnz ]
+[ -a authtype ]
+[ -A autharg ]
+[ -l logfile ]
+[ -m msize ]
+[ -u onlyuser ]
+[ rootpath ]
+.SH DESCRIPTION
+.I u9fs
+is a program that serves Unix files to Plan 9 and Unix machines using the 
+9P protocol.  It is typically invoked on a Unix machine by
+.B xinetd
+with its standard input and output connected to a
+network connection, typically TCP on an Ethernet.
+It typically runs as user
+.B root
+and multiplexes access to multiple clients over a single wire.
+It assumes uids from multiple systems match,
+and changes to the corresponding Unix effective uid when processing 
+requests.
+.I u9fs
+serves both 9P2000 and 9P2000.u.
+.PP
+9P2000.u is a 9P variant with extensions to better support Unix
+type systems.  It includes fields for numeric uid and gid, and extended
+mode support for suid, sgid, and Unix special files (devices, symlinks,
+links, and named pipes).
+.PP
+The 
+.I rootpath
+argument specifies the root of the tree to be exported.  By default this
+is the standard root ("/").
+.PP
+The options are:
+.TP
+.B -D
+Write very chatty debugging output to the log file (see 
+.B -l 
+option below).
+.TP
+.B -n
+Signals that 
+.I u9fs
+is 
+.I not
+being invoked with a network connection
+on standard input and output, and thus should
+not try to determine the remote address of the connection.
+This is useful when 
+.I u9fs
+is not invoked from
+.IR xinetd .
+.TP
+.B -z
+Truncate the log file on startup.  This is useful mainly when debugging
+with 
+.BR -D .
+.TP
+.BI -a " authtype
+Sets the authentication method to be used.
+.I Authtype
+should be
+.BR rhosts ,
+.BR none ,
+or
+.BR p9any .
+The default is rhosts, which uses the ruserok library call to 
+authenticate users by entries in 
+.B /etc/hosts.equiv
+or
+.BR $HOME/.rhosts .
+This default is discouraged for all but the most controlled networks.
+Specifying 
+.B none
+turns off authentication altogether.
+This is useful when 
+.I u9fs
+is not invoked from
+.IR xinetd .
+.  Specifying
+.B p9any
+uses the fourth edition Plan 9 authentication mechanisms.
+The file 
+.BR /etc/u9fs.key ,
+or
+.I autharg
+if specified
+(see the
+.B -A
+option),
+is consulted for the authentication data.
+The file must contain exactly three lines:
+the plaintext password, the user id, and
+the authentication domain.
+.TP
+.BI -A " autharg
+Used to specify an argument to the authentication method.
+See the authentication descriptions above.
+.TP
+.BI -l " logfile
+Specifies the file which should contain debugging output
+and other messages.
+The out-of-the-box compile-time default is
+.BR /tmp/u9fs.log .
+.TP
+.BI -m " msize
+Set 
+.I msize
+(maximum block size) for 9P2000.
+.TP
+.BI -u " user
+Treat all attaches as coming from 
+.IR user .
+This is useful in some cases when running without
+.IR inetd ;
+see the examples.
+.SH
+EXAMPLES
+.PP
+Plan 9 calls 9P file service
+.B 9fs
+with TCP port number 564.
+Set up this way on a machine called, say,
+.BR kremvax ,
+.I u9fs
+may be connected to the name space of a Plan 9 process by
+.IP
+.EX
+9fs kremvax
+.EE
+.PP
+On Linux systems with the \fBv9fs\fR module, users may
+connect to u9fs using the typical mount command, but must
+provide the IP address instead of the hostname (unfortunately,
+mount is somewhat bias in providing DNS lookup support for NFS,
+but no other network file system).
+.IP
+.EX
+mount -t 9P 192.168.1.5 /mnt/kremvax
+.EE
+.PP
+.I u9fs
+serves the entire file system of the Unix machine.
+.PP
+The original source to
+.I u9fs
+is in the Plan 9 directory
+.BR /sys/src/cmd/unix/u9fs .
+Updated versions of the source with the 9P2000.u support are
+available from 
+.IR http://v9fs.sourceforge.net .  
+To install
+.I u9fs
+on a Unix system with an ANSI C compiler, obtain the source and run
+.BR make .
+Then install the binary in
+.BR /usr/sbin/u9fs .
+Add the file 
+.BR 9fs 
+to 
+.BR /etc/xinetd.d :
+.IP
+.EX
+service u9fs
+.br
+{
+.br
+	disable         = no
+.br
+	socket_type     = stream
+.br
+	wait            = no
+.br
+	user            = root
+.br
+	group           = root
+.br
+	protocol        = tcp
+.br
+	port            = 564
+.br
+	server          = /usr/sbin/u9fs
+.br
+	server_args     = -m 65560
+.br
+}
+.br
+.EE
+.PP
+and this to
+.BR services :
+.IP
+.EX
+u9fs     564/tcp       9fs  # Plan 9 fs
+.EE
+.LP
+Additional installation instructions can be found in the INSTALL
+document bundled with the u9fs source.
+.SH DIAGNOSTICS
+Problems are reported to the
+log file specified with the
+.B -l 
+option (default
+.BR /tmp/u9fs.log ).
+The
+.B -D
+flag enables chatty debugging.
+.SH SEE ALSO
+.IR inetd (8),
+.IR mount (8),
+.IR services (5),
+.IR xinet (8),
+.br
+.IR http://v9fs.sourceforge.net
+.SH BUGS
+The implementation of devices is unsatisfactory.
+.LP
+Semantics like remove-on-close or the
+atomicity of 
+.B wstat
+are hard to provide exactly.
+.LP
+Security model is unsatisfactory.
+.LP
+Single threaded solution is less than satisfactory.
+

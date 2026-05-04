@@ -1,0 +1,201 @@
+--
+-- Z++ Formal Specification for the 9P2000 Protocol
+--
+
+-- Basic Types
+
+FREE TYPE
+    STRING ::= string
+    INTEGER ::= int
+    BYTE ::= byte
+    TAG ::= 1..65535
+    FID ::= 1..4294967295
+
+-- Data Structures
+
+-- Represents a Qid (server-side unique file identifier)
+SCHEMA Qid
+    type: BYTE
+    version: INTEGER
+    path: INTEGER
+
+-- Represents a 9P message
+SCHEMA Message
+    size: INTEGER
+    type: BYTE
+    tag: TAG
+
+-- Represents a file stat
+SCHEMA Stat
+    size: INTEGER
+    type: INTEGER
+    dev: INTEGER
+    qid: Qid
+    mode: INTEGER
+    atime: INTEGER
+    mtime: INTEGER
+    length: INTEGER
+    name: STRING
+    uid: STRING
+    gid: STRING
+    muid: STRING
+
+-- 9P Operations (T-messages and R-messages)
+
+-- Tversion: Negotiate protocol version
+SCHEMA Tversion EXTENDS Message
+    msize: INTEGER
+    version: STRING
+
+-- Rversion: Server response to Tversion
+SCHEMA Rversion EXTENDS Message
+    msize: INTEGER
+    version: STRING
+
+-- Tauth: Authenticate a user
+SCHEMA Tauth EXTENDS Message
+    afid: FID
+    uname: STRING
+    aname: STRING
+
+-- Rauth: Server response to Tauth
+SCHEMA Rauth EXTENDS Message
+    aqid: Qid
+
+-- Tattach: Attach to a file tree
+SCHEMA Tattach EXTENDS Message
+    fid: FID
+    afid: FID
+    uname: STRING
+    aname: STRING
+
+-- Rattach: Server response to Tattach
+SCHEMA Rattach EXTENDS Message
+    qid: Qid
+
+-- Twalk: Walk a directory hierarchy
+SCHEMA Twalk EXTENDS Message
+    fid: FID
+    newfid: FID
+    wname: seq STRING
+
+-- Rwalk: Server response to Twalk
+SCHEMA Rwalk EXTENDS Message
+    wqid: seq Qid
+
+-- Topen: Open a file for I/O
+SCHEMA Topen EXTENDS Message
+    fid: FID
+    mode: BYTE
+
+-- Ropen: Server response to Topen
+SCHEMA Ropen EXTENDS Message
+    qid: Qid
+    iounit: INTEGER
+
+-- Tcreate: Create a new file
+SCHEMA Tcreate EXTENDS Message
+    fid: FID
+    name: STRING
+    perm: INTEGER
+    mode: BYTE
+
+-- Rcreate: Server response to Tcreate
+SCHEMA Rcreate EXTENDS Message
+    qid: Qid
+    iounit: INTEGER
+
+-- Tread: Read from a file
+SCHEMA Tread EXTENDS Message
+    fid: FID
+    offset: INTEGER
+    count: INTEGER
+
+-- Rread: Server response to Tread
+SCHEMA Rread EXTENDS Message
+    count: INTEGER
+    data: seq BYTE
+
+-- Twrite: Write to a file
+SCHEMA Twrite EXTENDS Message
+    fid: FID
+    offset: INTEGER
+    count: INTEGER
+    data: seq BYTE
+
+-- Rwrite: Server response to Twrite
+SCHEMA Rwrite EXTENDS Message
+    count: INTEGER
+
+-- Tclunk: Close a fid
+SCHEMA Tclunk EXTENDS Message
+    fid: FID
+
+-- Rclunk: Server response to Tclunk
+SCHEMA Rclunk EXTENDS Message
+
+-- Tremove: Remove a file
+SCHEMA Tremove EXTENDS Message
+    fid: FID
+
+-- Rremove: Server response to Tremove
+SCHEMA Rremove EXTENDS Message
+
+-- Tstat: Read file metadata
+SCHEMA Tstat EXTENDS Message
+    fid: FID
+
+-- Rstat: Server response to Tstat
+SCHEMA Rstat EXTENDS Message
+    stat: Stat
+
+-- Twstat: Write file metadata
+SCHEMA Twstat EXTENDS Message
+    fid: FID
+    stat: Stat
+
+-- Rwstat: Server response to Twstat
+SCHEMA Rwstat EXTENDS Message
+
+-- Rerror: Error response
+SCHEMA Rerror EXTENDS Message
+    ename: STRING
+
+-- Server State
+
+-- Represents a file on the server
+SCHEMA ServerFile
+    qid: Qid
+    stat: Stat
+    data: seq BYTE
+
+-- Represents the server's file system
+SCHEMA FileSystem
+    files: FID -> ServerFile
+
+-- Represents the server's state
+SCHEMA ServerState
+    fs: FileSystem
+    active_fids: set FID
+
+-- Operations on State
+
+-- Attach operation
+SCHEMA AttachOperation
+    req: Tattach
+    res!: Rattach
+    state: ServerState
+    state': ServerState
+
+    pre: req.fid ∉ state.active_fids
+    post: state'.active_fids = state.active_fids ∪ {req.fid}
+
+-- Walk operation
+SCHEMA WalkOperation
+    req: Twalk
+    res!: Rwalk
+    state: ServerState
+    state': ServerState
+
+    pre: req.fid ∈ state.active_fids
+    post: state'.active_fids = state.active_fids ∪ {req.newfid}

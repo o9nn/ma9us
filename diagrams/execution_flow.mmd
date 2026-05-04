@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant User
+    participant RC_Shell
+    participant Parser
+    participant Executor
+
+    User->>RC_Shell: Enters command
+    RC_Shell->>Parser: Parse command string
+    Parser-->>RC_Shell: Return AST
+    RC_Shell->>Executor: Execute AST
+    Executor-->>RC_Shell: Return status
+    RC_Shell->>User: Display output/status

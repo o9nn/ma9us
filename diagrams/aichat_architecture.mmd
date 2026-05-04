@@ -1,0 +1,24 @@
+graph TD
+    subgraph "User Space"
+        A["rc shell"] --> B{"aichat functions"};
+    end
+
+    subgraph "9P Filesystem"
+        C["/ai/sessions/(pid)"] --> D["ctl, history, meta"];
+        E["/ai/features/(name)"] --> F["meta, prompt, examples"];
+    end
+
+    subgraph "Server"
+        G["aichat 9P Server"] --> H{"Session Manager"};
+        G --> I{"9P Handler"};
+        G --> J{"Backend Processor"};
+    end
+
+    subgraph "Backend"
+        K["aichat CLI"] --> L["LLM APIs"];
+    end
+
+    B --> C;
+    B --> E;
+    C --> G;
+    J --> K;

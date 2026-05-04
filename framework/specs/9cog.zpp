@@ -1,0 +1,127 @@
+-- 9cog Framework Formal Specification (Z++ notation)
+-- Defines the unified cognitive 9P framework
+
+-- ═══════════════════════════════════════════════════════════
+-- §1 CORE TYPES
+-- ═══════════════════════════════════════════════════════════
+
+schema FrameworkState
+  sessions   : SessionID ⇸ Session
+  models     : ModelName ⇸ ModelConfig
+  graph      : KnowledgeGraph
+  topology   : Topology
+  activeModel: ModelName
+  config     : Config
+where
+  activeModel ∈ dom models
+end
+
+type SessionID == ℕ₁
+type ModelName == seq Char
+
+schema Session
+  id       : SessionID
+  user     : seq Char
+  model    : ModelName
+  messages : seq Message
+  context  : seq Char ⇸ seq Char
+  created  : Time
+end
+
+schema Message
+  role     : {user, assistant, system}
+  content  : seq Char
+  timestamp: Time
+end
+
+-- ═══════════════════════════════════════════════════════════
+-- §2 KNOWLEDGE GRAPH (OpenCog-inspired)
+-- ═══════════════════════════════════════════════════════════
+
+type AtomID == ℕ₁
+
+schema TruthValue
+  strength   : ℝ
+  confidence : ℝ
+where
+  0 ≤ strength ≤ 1
+  0 ≤ confidence ≤ 1
+end
+
+schema Atom
+  id   : AtomID
+  type : AtomType
+  name : seq Char
+  tv   : TruthValue
+  out  : seq AtomID
+end
+
+type AtomType ::= ConceptNode | PredicateNode | VariableNode | NumberNode
+               | InheritanceLink | SimilarityLink | EvaluationLink
+               | MemberLink | ListLink
+
+schema KnowledgeGraph
+  atoms    : AtomID ⇸ Atom
+  byName   : seq Char ⇸ ℙ AtomID
+  byType   : AtomType ⇸ ℙ AtomID
+  incoming : AtomID ⇸ ℙ AtomID
+where
+  ∀ id : dom atoms • atoms(id).id = id
+  ∀ name : dom byName • ∀ id : byName(name) • atoms(id).name = name
+end
+
+-- ═══════════════════════════════════════════════════════════
+-- §3 ORGANIZATIONAL TOPOLOGY (120-cell model)
+-- ═══════════════════════════════════════════════════════════
+
+type VertexID == ℕ
+type Phase ::= Emergence | Growth | Maturity | Decay | Dissolution | Rebirth
+
+schema Topology
+  vertices : VertexID ⇸ Vertex
+  edges    : ℙ Edge
+  cells    : ℕ ⇸ Cell
+  phase    : Phase
+where
+  ∀ e : edges • e.from ∈ dom vertices ∧ e.to ∈ dom vertices
+  ∀ c : ran cells • c.members ⊆ dom vertices
+end
+
+-- ═══════════════════════════════════════════════════════════
+-- §4 OPERATIONS
+-- ═══════════════════════════════════════════════════════════
+
+schema CreateSession
+  ΔFrameworkState
+  user? : seq Char
+  id!   : SessionID
+where
+  id! ∉ dom sessions
+  sessions' = sessions ⊕ {id! ↦ ⟨id!, user?, activeModel, ⟨⟩, {}, now⟩}
+end
+
+schema SendMessage
+  ΔSession
+  content? : seq Char
+where
+  messages' = messages ⁀ ⟨⟨user, content?, now⟩⟩
+end
+
+schema QueryGraph
+  ΞKnowledgeGraph
+  linkType? : AtomType
+  targetID? : AtomID
+  slot?     : ℤ
+  results!  : ℙ Atom
+where
+  results! = { link : ran atoms | link.type = linkType? ∧
+    (slot? < 0 ⇒ targetID? ∈ ran link.out) ∧
+    (slot? ≥ 0 ⇒ link.out(slot?) = targetID?) }
+end
+
+-- INVARIANTS:
+-- INV1: Active model is always registered
+-- INV2: All link targets exist in the graph
+-- INV3: All cell members exist in the topology
+-- INV4: Session IDs are unique and monotonically increasing
+-- INV5: Topology edges connect existing vertices
