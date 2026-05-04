@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -135,11 +136,63 @@ func FSTree(srv *Server) *FSNode {
 		root.Children["topology"] = topology
 	}
 
+	if srv.config.EnableMemory {
+		memory := dir("memory")
+		memory.Children["stats"] = file("stats", func() string { return srv.consolidator.Stats() })
+		for _, kind := range AllMemoryKinds {
+			k := kind // capture for closure
+			sub := dir(k.String())
+			sub.Children["stats"] = file("stats", func() string {
+				return srv.consolidator.Subsystem(k).Stats()
+			})
+			sub.Children["atoms"] = file("atoms", func() string {
+				return srv.consolidator.Subsystem(k).ListAtoms()
+			})
+			memory.Children[k.String()] = sub
+		}
+		var (
+			broadcastMu        sync.Mutex
+			lastBroadcastResult string
+		)
+		memory.Children["broadcast"] = rwfile("broadcast",
+			func() string {
+				broadcastMu.Lock()
+				defer broadcastMu.Unlock()
+				return lastBroadcastResult
+			},
+			func(data string) error {
+				parts := strings.Fields(data)
+				if len(parts) < 2 {
+					return fmt.Errorf("broadcast format: kind salience [payload]")
+				}
+				salience, err := strconv.ParseFloat(parts[1], 64)
+				if err != nil {
+					return err
+				}
+				payload := ""
+				if len(parts) >= 3 {
+					payload = strings.Join(parts[2:], " ")
+				}
+				e := SyncEvent{
+					Kind:     parts[0],
+					Salience: salience,
+					Payload:  payload,
+				}
+				srv.consolidator.Broadcast(e)
+				broadcastMu.Lock()
+				lastBroadcastResult = fmt.Sprintf("broadcast: kind=%s salience=%.3f\n", e.Kind, e.Salience)
+				broadcastMu.Unlock()
+				return nil
+			},
+		)
+		root.Children["memory"] = memory
+	}
+
 	root.Children["config"] = rwfile("config",
 		func() string {
-			return fmt.Sprintf("listen: %s\ndefault_model: %s\nknowledge: %v\ntopology: %v\n",
+			return fmt.Sprintf("listen: %s\ndefault_model: %s\nknowledge: %v\ntopology: %v\nmemory: %v\n",
 				srv.config.ListenAddr, srv.config.DefaultModel,
-				srv.config.EnableKnowledge, srv.config.EnableTopology)
+				srv.config.EnableKnowledge, srv.config.EnableTopology, srv.config.EnableMemory)
 		},
 		func(data string) error {
 			for _, line := range strings.Split(data, "\n") {
