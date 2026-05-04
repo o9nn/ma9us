@@ -57,11 +57,12 @@ func (t AtomType) String() string {
 }
 
 type Atom struct {
-	ID       uint64     `json:"id"`
-	Type     AtomType   `json:"type"`
-	Name     string     `json:"name"`
-	TV       TruthValue `json:"truth_value"`
-	Outgoing []uint64   `json:"outgoing,omitempty"`
+	ID         uint64     `json:"id"`
+	Type       AtomType   `json:"type"`
+	Name       string     `json:"name"`
+	TV         TruthValue `json:"truth_value"`
+	Outgoing   []uint64   `json:"outgoing,omitempty"`
+	MatulaName uint64     `json:"matula_name"` // eternal prime name (Matula-Goebel)
 }
 
 func (a *Atom) IsNode() bool { return a.Type <= NumberNode }
@@ -75,19 +76,20 @@ func (a *Atom) String() string {
 }
 
 type KnowledgeGraph struct {
-	mu       sync.RWMutex
-	atoms    map[uint64]*Atom
-	byName   map[string][]*Atom
-	byType   map[AtomType][]*Atom
-	incoming map[uint64][]*Atom
-	nextID   uint64
+	mu          sync.RWMutex
+	atoms       map[uint64]*Atom
+	byName      map[string][]*Atom
+	byType      map[AtomType][]*Atom
+	incoming    map[uint64][]*Atom
+	nextID      uint64
+	nextMatulaN uint64 // counter for sequential prime assignment
 }
 
 func NewKnowledgeGraph() *KnowledgeGraph {
 	return &KnowledgeGraph{
 		atoms: make(map[uint64]*Atom), byName: make(map[string][]*Atom),
 		byType: make(map[AtomType][]*Atom), incoming: make(map[uint64][]*Atom),
-		nextID: 1,
+		nextID: 1, nextMatulaN: 0,
 	}
 }
 
@@ -100,7 +102,8 @@ func (g *KnowledgeGraph) AddNode(typ AtomType, name string, tv TruthValue) *Atom
 			return existing
 		}
 	}
-	atom := &Atom{ID: g.nextID, Type: typ, Name: name, TV: tv}
+	g.nextMatulaN++
+	atom := &Atom{ID: g.nextID, Type: typ, Name: name, TV: tv, MatulaName: NthPrime(g.nextMatulaN)}
 	g.nextID++
 	g.atoms[atom.ID] = atom
 	g.byName[name] = append(g.byName[name], atom)
@@ -111,7 +114,8 @@ func (g *KnowledgeGraph) AddNode(typ AtomType, name string, tv TruthValue) *Atom
 func (g *KnowledgeGraph) AddLink(typ AtomType, outgoing []uint64, tv TruthValue) *Atom {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	atom := &Atom{ID: g.nextID, Type: typ, Outgoing: outgoing, TV: tv}
+	g.nextMatulaN++
+	atom := &Atom{ID: g.nextID, Type: typ, Outgoing: outgoing, TV: tv, MatulaName: NthPrime(g.nextMatulaN)}
 	g.nextID++
 	g.atoms[atom.ID] = atom
 	g.byType[typ] = append(g.byType[typ], atom)

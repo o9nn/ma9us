@@ -8,6 +8,7 @@ type Config struct {
 	MaxSessions     int                       `json:"max_sessions"`
 	EnableKnowledge bool                      `json:"enable_knowledge"`
 	EnableTopology  bool                      `json:"enable_topology"`
+	EnableMemory    bool                      `json:"enable_memory"`
 	ProviderConfigs map[string]ProviderConfig `json:"providers"`
 }
 
@@ -27,6 +28,7 @@ func DefaultConfig() *Config {
 		MaxSessions:     0,
 		EnableKnowledge: true,
 		EnableTopology:  true,
+		EnableMemory:    true,
 		ProviderConfigs: make(map[string]ProviderConfig),
 	}
 }

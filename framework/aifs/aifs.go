@@ -19,13 +19,14 @@ import (
 
 // Server is the AI filesystem server that synthesizes all framework components.
 type Server struct {
-	mu       sync.RWMutex
-	sessions map[uint64]*Session
-	models   *ModelRegistry
-	graph    *KnowledgeGraph
-	topology *Topology
-	config   *Config
-	nextID   atomic.Uint64
+	mu          sync.RWMutex
+	sessions    map[uint64]*Session
+	models      *ModelRegistry
+	graph       *KnowledgeGraph
+	topology    *Topology
+	config      *Config
+	consolidator *MemoryConsolidator
+	nextID      atomic.Uint64
 }
 
 // NewServer creates a new AI filesystem server with the given configuration.
@@ -33,15 +34,19 @@ func NewServer(cfg *Config) *Server {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
+	graph := NewKnowledgeGraph()
 	s := &Server{
 		sessions: make(map[uint64]*Session),
 		models:   NewModelRegistry(),
-		graph:    NewKnowledgeGraph(),
+		graph:    graph,
 		topology: NewTopology(),
 		config:   cfg,
 	}
 	for _, m := range cfg.Models {
 		s.models.Register(m)
+	}
+	if cfg.EnableMemory {
+		s.consolidator = NewMemoryConsolidator(graph)
 	}
 	return s
 }
